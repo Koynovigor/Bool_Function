@@ -171,93 +171,151 @@ public:
 	//	}
 	//}
 
-	Bfunc mobius(){
-		Bfunc mob = *this;
-		bool bit = 0;
-		for (int i = 0; i < sizeof_base; ++i)
-		{
-			for (int j = (i + 1) | i; j < sizeof_base; j = (j + 1) | i) {
-				bit = (((mob.coef[0] >> (sizeof_base - j - 1)) & 1) ^ ((mob.coef[0] >> (sizeof_base - i - 1)) & 1));
-				if (bit) {
-					mob.coef[0] |= (1 << (sizeof_base - j - 1));
-				}
-				else {
-					mob.coef[0] &= ~(1 << (sizeof_base - j - 1));
-				}
-			}
+	base mask(base i) {
+		switch (i){
+		case 0: return 0x55555555;
+		case 1: return 0x33333333;
+		case 2: return 0x0F0F0F0F;
+		case 3: return 0x00FF00FF;
+		case 4: return 0x0000FFFF;
+		default:
+			break;
 		}
-		return mob;
+		return 0xFFFFFFFF;
 	}
 
-	string anf(){
-		base len = log2(sizet);
-		base pow = 0;
-		Bfunc meb = this->mobius();
-		uint8_t t = 0;
-		string anf;
-		Bfunc zero(len, ZERO);
-		Bfunc one(len, ONE);
-		if (meb == zero){
-			anf += '0';
-			return anf;
+	base log2(base n){
+		if (n <= 1) {
+			return 0;
 		}
-		if (meb.sizet < sizeof_base){
-			bitset<sizeof_base> st(meb.coef[0]);
-			string str = st.to_string();
-			str.erase(0, size_t(sizeof_base) - meb.sizet);
-			if (str[0] == '1'){
-				anf += "1 + ";
+		base result = 0;
+		while (n > 1){
+			n >>= 1;
+			result += 1;
+		}
+		return result;
+	}
+
+	Bfunc mobius() {
+		Bfunc mobius = *this;
+		base m = log2(sizeof_base);
+		for (base i = 0; i < size; i++){
+			for (base j = 0; j < m; j++){
+				mobius.coef[i] ^= (mobius.coef[i] >> (1 << j)) & mask(j);
 			}
-			for (size_t i = 1; i < str.length(); i++){
-				if (str[i] == '1'){
-					bitset<sizeof_base> st2(i);
-					string str2 = st2.to_string();
-					str2.erase(0, size_t(sizeof_base) - len);
-					for (size_t j = 0; j < str2.length(); j++){
-						if (str2[j] == '1'){
-							t++;
-							anf += "x";
-							anf += std::to_string((j + 1));
+		}
+		if (log2(sizet) < m){
+			size_t bits = (1 << log2(sizet)) & (sizeof_base - 1);
+			mobius.coef[0] &= (1 << bits) - 1;
+			return mobius;
+		}
+		for (base i = 0; i < log2(sizet) - m; i++){
+			size_t cs = 1 << i;
+			for (base j = 0; j < log2(sizet) / cs; j += 2){
+				for (base k = 0; k < cs; k++){
+					mobius.coef[j * cs + k] ^= mobius.coef[(j + 1) * cs + k];
+				}
+			}
+		}
+		return mobius;
+	}
+
+	//string anf(){
+	//	base len = log2(sizet);
+	//	base pow = 0;
+	//	Bfunc meb = this->mobius();
+	//	uint8_t t = 0;
+	//	string anf;
+	//	Bfunc zero(len, ZERO);
+	//	Bfunc one(len, ONE);
+	//	if (meb == zero){
+	//		anf += '0';
+	//		return anf;
+	//	}
+	//	if (meb.sizet < sizeof_base){
+	//		bitset<sizeof_base> st(meb.coef[0]);
+	//		string str = st.to_string();
+	//		str.erase(0, size_t(sizeof_base) - meb.sizet);
+	//		if (str[0] == '1'){
+	//			anf += "1 + ";
+	//		}
+	//		for (size_t i = 1; i < str.length(); i++){
+	//			if (str[i] == '1'){
+	//				bitset<sizeof_base> st2(i);
+	//				string str2 = st2.to_string();
+	//				str2.erase(0, size_t(sizeof_base) - len);
+	//				for (size_t j = 0; j < str2.length(); j++){
+	//					if (str2[j] == '1'){
+	//						t++;
+	//						anf += "x";
+	//						anf += std::to_string((j + 1));
+	//					}
+	//				}
+	//				if (t > pow){
+	//					pow = t;
+	//				}
+	//				t = 0;
+	//				if (anf[anf.length() - 2] != '+'){
+	//					anf += " + ";
+	//				}
+	//			}
+	//		}
+	//	}
+	//	else{
+	//		if ((meb.coef[meb.size - 1] >> 31) & 1){
+	//			anf += "1 + ";
+	//		}
+	//		for (size_t k = 0; k < meb.size; k++){
+	//			bitset<sizeof_base> st(meb.coef[meb.size - k - 1]);
+	//			string str = st.to_string();
+	//			for (size_t i = 0; i < str.length(); i++){
+	//				if (str[i] == '1'){
+	//					bitset<sizeof_base> st2((i + (1 << 5) * k));
+	//					string str2 = st2.to_string();
+	//					str2.erase(0, size_t(sizeof_base) - len);
+	//					for (size_t j = 0; j < str2.length(); j++){
+	//						if (str2[j] == '1'){
+	//							t++;
+	//							anf += "x";
+	//							anf += to_string((j + 1));
+	//						}
+	//					}
+	//					if (t > pow) pow = t;
+	//					t = 0;
+	//					if (anf[anf.length() - 2] != '+') anf += " + ";
+	//				}
+	//			}
+	//		}
+	//	}
+	//	if (anf[anf.length() - 2] == '+') anf.erase(anf.length() - 2, 1);
+	//	return anf;
+	//}
+
+
+	string anf() {
+		if (weight_bfunc() == 0){
+			return "0";
+		}
+		int n = log2(sizet);
+		string formula;
+		for (base j = 0; j < size; j++){
+			for (int i = 0; i < sizeof_base; i++) {
+				if (((coef[j] >> (sizeof_base - 1 - i)) & 1) == 1) {
+					if (!formula.empty()) {
+						formula += " + ";
+					}
+					for (int k = 0; k < n; k++) {
+						if (((i >> (n - k - 1)) & 1) == 1) {
+							formula += "x" + to_string(k + 1);
 						}
 					}
-					if (t > pow){
-						pow = t;
-					}
-					t = 0;
-					if (anf[anf.length() - 2] != '+'){
-						anf += " + ";
+					if (formula.empty()) {
+						formula += "1";
 					}
 				}
 			}
 		}
-		else{
-			if ((meb.coef[meb.size - 1] >> 31) & 1){
-				anf += "1 + ";
-			}
-			for (size_t k = 0; k < meb.size; k++){
-				bitset<sizeof_base> st(meb.coef[meb.size - k - 1]);
-				string str = st.to_string();
-				for (size_t i = 0; i < str.length(); i++){
-					if (str[i] == '1'){
-						bitset<sizeof_base> st2((i + (1 << 5) * k));
-						string str2 = st2.to_string();
-						str2.erase(0, size_t(sizeof_base) - len);
-						for (size_t j = 0; j < str2.length(); j++){
-							if (str2[j] == '1'){
-								t++;
-								anf += "x";
-								anf += to_string((j + 1));
-							}
-						}
-						if (t > pow) pow = t;
-						t = 0;
-						if (anf[anf.length() - 2] != '+') anf += " + ";
-					}
-				}
-			}
-		}
-		if (anf[anf.length() - 2] == '+') anf.erase(anf.length() - 2, 1);
-		return anf;
+		return formula;
 	}
 
 	vector<int> walsh_hadamard(){
@@ -321,6 +379,13 @@ int main() {
 	setlocale(LC_ALL, "Russian");
 	system("chcp 1251");
 
+	//Bfunc b("10101110101011101010111010101110101011101010111010101110101011101010111010101110101011101010111010101110101011101010111010101110");
+	//cout << b.mobius().anf() << "\n";
+
+	
+
+
+
 	//1 lab
 	//for (size_t i = 2; i <= 5; i++) {
 	//	Bfunc a(i, ONE);
@@ -343,26 +408,26 @@ int main() {
 	//}
 
 	//2 lab
-	//Bfunc a(6, ONE);
-	//cout << a << "\t" << "АНФ: " << a.anf() << endl;
-	//Bfunc b(6, ZERO);
-	//cout << b << "\t" << "АНФ: " << b.anf() << endl;
-	//for (size_t i = 2; i <= 30; i++){
-	//    Bfunc x(i, RAND);
-	//    Bfunc y(0), z(0);
-	//    y = x.mobius();
-	//    z = y.mobius();
-	//    cout << "Количество аргументов = " << i << "\tПреобразование Мёбиуса " << ((x == z) ? "верно!" : "не верно!");
-	//    cout << endl;
-	//}
-	//Bfunc x(31, RAND);
-	//Bfunc y(0), z(0);
-	//auto begin = chrono::steady_clock::now();
-	//y = x.mobius();
-	//auto end = chrono::steady_clock::now();
-	//auto t_mobius = chrono::duration_cast<chrono::milliseconds>(end - begin);	
-	//z = y.mobius();
-	//cout << "Количество аргументов = " << 31 << "\tПреобразование Мёбиуса " << ((x == z) ? "верно!" : "не верно!") << "\tВремя = " << t_mobius.count() << " мс\n";
+	Bfunc a(6, ONE);
+	cout << a << "\t" << "АНФ: " << a.mobius().anf() << endl;
+	Bfunc b(6, ZERO);
+	cout << b << "\t" << "АНФ: " << b.mobius().anf() << endl;
+	for (size_t i = 2; i <= 30; i++){
+	    Bfunc x(i, RAND);
+	    Bfunc y(0), z(0);
+	    y = x.mobius();
+	    z = y.mobius();
+	    cout << "Количество аргументов = " << i << "\tПреобразование Мёбиуса " << ((x == z) ? "верно!" : "не верно!");
+	    cout << endl;
+	}
+	Bfunc x(31, RAND);
+	Bfunc y(0), z(0);
+	auto begin = chrono::steady_clock::now();
+	y = x.mobius();
+	auto end = chrono::steady_clock::now();
+	auto t_mobius = chrono::duration_cast<chrono::milliseconds>(end - begin);	
+	z = y.mobius();
+	cout << "Количество аргументов = " << 31 << "\tПреобразование Мёбиуса " << ((x == z) ? "верно!" : "не верно!") << "\tВремя = " << t_mobius.count() << " мс\n";
 
 	//3 lab
 	//for (size_t i = 3; i <= 9; i += 3) {
