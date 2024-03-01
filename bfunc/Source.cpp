@@ -22,12 +22,43 @@ constexpr base sizeof_base = (sizeof(base) << 3);
 
 using namespace std;
 
+base weight_base(base num) {
+	base w = num;
+	w = (w & 0x55555555L) + ((w >> 1) & 0x55555555L);
+	w = (w & 0x33333333L) + ((w >> 2) & 0x33333333L);
+	w = (w + (w >> 4)) & 0x0F0F0F0FL;
+	w = w + (w >> 8);
+	return (uint8_t)(w + (w >> 16)) & 0x3F;;
+}
+int mask(int i) {
+	switch (i) {
+	case 0: return 0x55555555;
+	case 1: return 0x33333333;
+	case 2: return 0x0F0F0F0F;
+	case 3: return 0x00FF00FF;
+	case 4: return 0x0000FFFF;
+	default:
+		break;
+	}
+	return 0x00000000;
+}
+base log2(base n) {
+	if (n <= 1) {
+		return 0;
+	}
+	base result = 0;
+	while (n > 1) {
+		n >>= 1;
+		result += 1;
+	}
+	return result;
+}
+
 class Bfunc{
-public:
 	base sizet = 0;         
 	base size = 0;
 	base* coef = nullptr;
-
+public:
 	Bfunc(string str) {
 		base len_str = str.length();
 		if (len_str > 0 && (len_str & (len_str - 1)) == 0){
@@ -119,7 +150,7 @@ public:
 		}
 		return *this;
 	}
-	bool operator == (const Bfunc other) {
+	bool operator == (const Bfunc& other) {
 		if (sizet != other.sizet) {
 			return false;
 		}
@@ -130,7 +161,7 @@ public:
 		}
 		return true;
 	}
-	bool operator != (const Bfunc other) {
+	bool operator != (const Bfunc& other) {
 		return !(*this == other);
 	}
 
@@ -164,140 +195,96 @@ public:
 		return res;
 	}
 
-	//void printByVec(){
-	//	for (size_t i = 0; i < size; i++){
-	//		bitset<sizeof_base> s(coef[i]);
-	//		cout << s.to_string() << " " << i << endl;
-	//	}
-	//}
-
-	base mask(base i) {
-		switch (i){
-		case 0: return 0x55555555;
-		case 1: return 0x33333333;
-		case 2: return 0x0F0F0F0F;
-		case 3: return 0x00FF00FF;
-		case 4: return 0x0000FFFF;
-		default:
-			break;
-		}
-		return 0xFFFFFFFF;
-	}
-
-	base log2(base n){
-		if (n <= 1) {
-			return 0;
-		}
-		base result = 0;
-		while (n > 1){
-			n >>= 1;
-			result += 1;
-		}
-		return result;
-	}
-
 	Bfunc mobius() {
 		Bfunc mobius = *this;
-		base m = log2(sizeof_base);
-		for (base i = 0; i < size; i++){
-			for (base j = 0; j < m; j++){
+		int m = log2(sizeof_base);
+		for (int i = 0; i < size; i++){
+			for (int j = 0; j < m; j++){
 				mobius.coef[i] ^= (mobius.coef[i] >> (1 << j)) & mask(j);
 			}
 		}
 		if (log2(sizet) < m){
-			size_t bits = (1 << log2(sizet)) & (sizeof_base - 1);
+			uint32_t bits = (1 << log2(sizet)) & (sizeof_base - 1);
 			mobius.coef[0] &= (1 << bits) - 1;
 			return mobius;
 		}
-		for (base i = 0; i < log2(sizet) - m; i++){
-			size_t cs = 1 << i;
-			for (base j = 0; j < log2(sizet) / cs; j += 2){
-				for (base k = 0; k < cs; k++){
-					mobius.coef[j * cs + k] ^= mobius.coef[(j + 1) * cs + k];
+		uint32_t l_2 = log2(sizet);
+		for (uint32_t k = 0; k < l_2 - 5; k++){
+			for (uint32_t l = 0; l < (1 << (l_2 - 6 - k)); l++){
+				for (uint32_t i = l * (1 << (k + 1)), j = i + (1 << k), p = 0; p < (1 << k); p++, i++, j++){
+					mobius.coef[i] ^= mobius.coef[j];
 				}
 			}
 		}
 		return mobius;
 	}
 
-	//string anf(){
-	//	base len = log2(sizet);
-	//	base pow = 0;
-	//	Bfunc meb = this->mobius();
-	//	uint8_t t = 0;
-	//	string anf;
-	//	Bfunc zero(len, ZERO);
-	//	Bfunc one(len, ONE);
-	//	if (meb == zero){
-	//		anf += '0';
-	//		return anf;
+	//Bfunc mobius()
+	//{
+	//	Bfunc g(0);
+	//	g = *this;
+	//	if (sizet == 2)
+	//	{
+	//		g.coef[0] = g.coef[0] ^ ((g.coef[0] >> 1) & 0x55555555);
+	//		return g;
 	//	}
-	//	if (meb.sizet < sizeof_base){
-	//		bitset<sizeof_base> st(meb.coef[0]);
-	//		string str = st.to_string();
-	//		str.erase(0, size_t(sizeof_base) - meb.sizet);
-	//		if (str[0] == '1'){
-	//			anf += "1 + ";
+	//	if (sizet == 4)
+	//	{
+	//		g.coef[0] = g.coef[0] ^ ((g.coef[0] >> 1) & 0x55555555);
+	//		g.coef[0] = g.coef[0] ^ ((g.coef[0] >> 2) & 0x33333333);
+	//		return g;
+	//	}
+	//	if (sizet == 8)
+	//	{
+	//		g.coef[0] = g.coef[0] ^ ((g.coef[0] >> 1) & 0x55555555);
+	//		g.coef[0] = g.coef[0] ^ ((g.coef[0] >> 2) & 0x33333333);
+	//		g.coef[0] = g.coef[0] ^ ((g.coef[0] >> 4) & 0x0f0f0f0f);
+	//		return g;
+	//	}
+	//	if (sizet == 16)
+	//	{
+	//		g.coef[0] = g.coef[0] ^ ((g.coef[0] >> 1) & 0x55555555);
+	//		g.coef[0] = g.coef[0] ^ ((g.coef[0] >> 2) & 0x33333333);
+	//		g.coef[0] = g.coef[0] ^ ((g.coef[0] >> 4) & 0x0f0f0f0f);
+	//		g.coef[0] = g.coef[0] ^ ((g.coef[0] >> 8) & 0x00ff00ff);
+	//		return g;
+	//	}
+	//	if (sizet >= 32)
+	//	{
+	//		for (size_t i = 0; i < size; i++)
+	//		{
+	//			g.coef[i] ^= ((g.coef[i] >> 1) & 0x55555555);
+	//			g.coef[i] ^= ((g.coef[i] >> 2) & 0x33333333);
+	//			g.coef[i] ^= ((g.coef[i] >> 4) & 0x0f0f0f0f);
+	//			g.coef[i] ^= ((g.coef[i] >> 8) & 0x00ff00ff);
+	//			g.coef[i] ^= ((g.coef[i] >> 16) & 0x0000ffff);
 	//		}
-	//		for (size_t i = 1; i < str.length(); i++){
-	//			if (str[i] == '1'){
-	//				bitset<sizeof_base> st2(i);
-	//				string str2 = st2.to_string();
-	//				str2.erase(0, size_t(sizeof_base) - len);
-	//				for (size_t j = 0; j < str2.length(); j++){
-	//					if (str2[j] == '1'){
-	//						t++;
-	//						anf += "x";
-	//						anf += std::to_string((j + 1));
-	//					}
-	//				}
-	//				if (t > pow){
-	//					pow = t;
-	//				}
-	//				t = 0;
-	//				if (anf[anf.length() - 2] != '+'){
-	//					anf += " + ";
+	//		uint32_t l_2 = log2(sizet);
+	//		for (uint32_t k = 0; k < l_2 - 5; k++)
+	//		{
+	//			for (uint32_t l = 0; l < (1 << (l_2 - 6 - k)); l++)
+	//			{
+	//				for (uint32_t i = l * (1 << (k + 1)), j = i + (1 << k), p = 0; p < (1 << k); p++, i++, j++)
+	//				{
+	//					g.coef[i] ^= g.coef[j];
 	//				}
 	//			}
 	//		}
+	//		return g;
 	//	}
-	//	else{
-	//		if ((meb.coef[meb.size - 1] >> 31) & 1){
-	//			anf += "1 + ";
-	//		}
-	//		for (size_t k = 0; k < meb.size; k++){
-	//			bitset<sizeof_base> st(meb.coef[meb.size - k - 1]);
-	//			string str = st.to_string();
-	//			for (size_t i = 0; i < str.length(); i++){
-	//				if (str[i] == '1'){
-	//					bitset<sizeof_base> st2((i + (1 << 5) * k));
-	//					string str2 = st2.to_string();
-	//					str2.erase(0, size_t(sizeof_base) - len);
-	//					for (size_t j = 0; j < str2.length(); j++){
-	//						if (str2[j] == '1'){
-	//							t++;
-	//							anf += "x";
-	//							anf += to_string((j + 1));
-	//						}
-	//					}
-	//					if (t > pow) pow = t;
-	//					t = 0;
-	//					if (anf[anf.length() - 2] != '+') anf += " + ";
-	//				}
-	//			}
-	//		}
-	//	}
-	//	if (anf[anf.length() - 2] == '+') anf.erase(anf.length() - 2, 1);
-	//	return anf;
+	//	return  g;
 	//}
 
-
-	string anf() {
+	//1 - ANF
+	//0 - DEG
+	string anf(bool flag = true) {
 		if (weight_bfunc() == 0){
 			return "0";
 		}
 		int n = log2(sizet);
 		string formula;
+		base deg = 0;
+		base deg_max = 0;
 		for (base j = 0; j < size; j++){
 			for (int i = 0; i < sizeof_base; i++) {
 				if (((coef[j] >> (sizeof_base - 1 - i)) & 1) == 1) {
@@ -306,6 +293,7 @@ public:
 					}
 					for (int k = 0; k < n; k++) {
 						if (((i >> (n - k - 1)) & 1) == 1) {
+							deg++;
 							formula += "x" + to_string(k + 1);
 						}
 					}
@@ -313,9 +301,14 @@ public:
 						formula += "1";
 					}
 				}
+				if (deg > deg_max) {
+					deg_max = deg;
+				}
+				deg = 0;
 			}
 		}
-		return formula;
+		if (flag) return formula;
+		else return to_string(deg_max);
 	}
 
 	vector<int> walsh_hadamard(){
@@ -350,42 +343,149 @@ public:
 
 	base cor(){
 		vector<int>wal = this->walsh_hadamard();
-		base len = log2(wal.size()), temp_res = 0, temp = 0, temp_mid = 0, res = 0;
-		for (size_t k = 1; k < (len + 1); k++){
-			temp_res = ((1 << k) - 1) << (len - k);
-			temp_mid = temp_res;
-			base i, j = 0;
-			while (true){
-				if (wal[temp_res] != 0) return res;
-				j = (temp_res + 1) & temp_res;
-				temp = (j - 1) ^ temp_res;
-				temp = (temp & 0x55555555L) + ((temp >> 1) & 0x55555555L);
-				temp = (temp & 0x33333333L) + ((temp >> 2) & 0x33333333L);
-				temp = (temp + (temp >> 4)) & 0x0F0F0F0FL;
-				temp = temp + (temp >> 8);
-				i = (uint8_t)(temp + (temp >> 16)) & 0x3F;
-				i -= 2;
-				temp_res = (((((temp_res + 1) ^ temp_res) << 1) + 1) << i) ^ j;
-				if (temp_res > temp_mid) break;
-				temp_mid = temp_res;
+		base n = log2(sizet);
+		base a = 0, b = 0, c = 0;
+		base result = 0;
+		for (size_t k = 1; k <= n; k++){
+			a = ((1 << k) - 1) << (n - k);
+			base tmp_a = a;
+			// a = a; tmp_a = i
+			while (a <= tmp_a){
+				tmp_a = a;
+				if (wal[a] != 0) {
+					return result;
+				}
+				b = (a + 1) & a;
+				c = weight_base((b - 1) ^ a) - 2;
+				a = (((((a + 1) ^ a) << 1) + 1) << c) ^ b;
 			}
-			res++;
+			result++;
+		}
+		return result;
+	}
+
+	base nonlinearity(){
+		vector<int> wal = this->walsh_hadamard();
+		auto minmax = minmax_element(wal.begin(), wal.end());
+		base m_x = max(abs(*minmax.first), *minmax.second);
+		return ((sizet >> 1) - ((m_x) >> 1));
+	}
+
+	string best_affine_approximation(){
+		vector<int> wal = this->walsh_hadamard();
+		base n = log2(sizet);
+		int max_arg = 0;
+		for (int i = 0; i < wal.size(); i++) {
+			if (abs(wal[i]) > abs(wal[max_arg])) {
+				max_arg = i;
+			}
+		}
+		string res;
+		if (wal[max_arg] < 0) {
+			res = "1";
+		}
+
+		bitset<32> st2(max_arg);
+		string str2 = st2.to_string();
+		str2.erase(0, size_t(32) - n);
+		for (size_t j = 0; j < str2.length(); j++){
+			if (str2[j] == '1'){
+				if (!res.empty()){
+					res += " + ";
+				}
+				res += "X";
+				res += std::to_string((j + 1));
+			}
+		}	
+		if (res.empty()) {
+			res = "0";
 		}
 		return res;
+	}
+
+	vector<int> autocor(){
+		vector<int> autocor_vec = walsh_hadamard();
+		for (int i = 0; i < autocor_vec.size(); i++){
+			autocor_vec[i] *= autocor_vec[i];
+		}
+		for (int i = 0; i < log2(sizet); i++){
+			size_t cs = 1 << i;
+			for (int j = 0; j < (autocor_vec.size() / cs); j++){
+				if ((j & 1) == 0) {
+					for (int k = 0; k < cs; k++){
+						autocor_vec[j * cs + k] += autocor_vec[(j + 1) * cs + k];
+					}
+				}
+				else{
+					for (int k = 0; k < cs; k++){
+						autocor_vec[j * cs + k] = autocor_vec[(j - 1) * cs + k] - 2 * autocor_vec[j * cs + k];
+					}
+				}
+			}
+		}
+		for (int i = 0; i < autocor_vec.size(); i++) {
+			autocor_vec[i] >>= log2(sizet);
+		}
+		return autocor_vec;
+	}
+
+	base сomplete_nonlinear(){
+		vector<int>autocor = this->autocor();
+		auto minmax = minmax_element(autocor.begin() + 1, autocor.end());
+		base m_x = max(abs(*minmax.first), *minmax.second);
+		return (sizet >> 2) - ((m_x) >> 2);
 	}
 };
 
 int main() {
 	setlocale(LC_ALL, "Russian");
 	system("chcp 1251");
-
-	//Bfunc b("10101110101011101010111010101110101011101010111010101110101011101010111010101110101011101010111010101110101011101010111010101110");
-	//cout << b.mobius().anf() << "\n";
-
 	
+	//string str = "0001000100011110000100010001111000010001000111101110111011100001";
+	//Bfunc a(str);
+	//Bfunc a(6, RAND);
+	//Bfunc b = a.mobius();
+	//cout << "f: " << a << "\n";
+	//cout << "Mobius: " << b << "\n";
+	//cout << "ANF: " << b.anf() << "\n";
+	//cout << "Deg(f): " << b.anf(false) << "\n";
+	//cout << "cor(f): " << a.cor() << "\n";
+	//cout << "Walsh-Hadamard: ";
+	//vector<int> wal;
+	//wal = a.walsh_hadamard();
+	//for (auto j : wal) {
+	//	cout << j << " ";
+	//}
+	//cout << endl;
+	//cout << "Nf: " << a.nonlinearity() << "\n";
+	//cout << "NAP: " << a.best_affine_approximation() << "\n";
+	//vector<int32_t> autocor;
+	//cout << "Autocorrelation: ";
+	//autocor = a.autocor();
+	//for (auto j : autocor) {
+	//	cout << j << " ";
+	//}
+	//cout << endl;
+	//cout << "CNf: " << a.сomplete_nonlinear() << "\n";
 
 
-
+	//Bfunc bf1("0111101001111010011110100111101001111010011110100111101001111010");
+	//if (bf1.nonlinearity() != 8) {
+	//	cout << "nonlinearity(01111010) != 1\n";
+	//}
+	//Bfunc bf2("0110000001100000011000000110000001100000011000000110000001100000");
+	//if (bf2.nonlinearity() != 16) {
+	//	cout << "nonlinearity(01100000) != 2\n";
+	//}
+	//Bfunc bf0("0000000000000000000000000000000000000000000000000000000000000000");
+	//if (bf0.nonlinearity() != 0) {
+	//	cout << "nonlinearity(0000000000000000000000000000000000000000000000000000000000000000) != 0\n";
+	//}
+	//Bfunc bf11("1111111111111111111111111111111111111111111111111111111111111111");
+	//if (bf11.nonlinearity() != 0) {
+	//	cout << "nonlinearity(1111111111111111111111111111111111111111111111111111111111111111) != 0\n";
+	//}
+	
 	//1 lab
 	//for (size_t i = 2; i <= 5; i++) {
 	//	Bfunc a(i, ONE);
@@ -408,26 +508,31 @@ int main() {
 	//}
 
 	//2 lab
-	Bfunc a(6, ONE);
-	cout << a << "\t" << "АНФ: " << a.mobius().anf() << endl;
-	Bfunc b(6, ZERO);
-	cout << b << "\t" << "АНФ: " << b.mobius().anf() << endl;
-	for (size_t i = 2; i <= 30; i++){
-	    Bfunc x(i, RAND);
-	    Bfunc y(0), z(0);
-	    y = x.mobius();
-	    z = y.mobius();
-	    cout << "Количество аргументов = " << i << "\tПреобразование Мёбиуса " << ((x == z) ? "верно!" : "не верно!");
-	    cout << endl;
-	}
-	Bfunc x(31, RAND);
-	Bfunc y(0), z(0);
-	auto begin = chrono::steady_clock::now();
-	y = x.mobius();
-	auto end = chrono::steady_clock::now();
-	auto t_mobius = chrono::duration_cast<chrono::milliseconds>(end - begin);	
-	z = y.mobius();
-	cout << "Количество аргументов = " << 31 << "\tПреобразование Мёбиуса " << ((x == z) ? "верно!" : "не верно!") << "\tВремя = " << t_mobius.count() << " мс\n";
+	//Bfunc a(6, ONE);
+	//Bfunc a_mob = a.mobius();
+	//string a_anf = a_mob.anf();
+	//string a_deg = a_mob.anf(false);
+	//cout << a << "\t" << "АНФ: " << a_anf << " Степень: " << a_deg << endl;
+	//Bfunc b(6, ZERO);
+	//Bfunc b_mob = b.mobius();
+	//string b_anf = b_mob.anf();
+	//string b_deg = b_mob.anf(false);
+	//cout << b << "\t" << "АНФ: " << b_anf << " Степень: " << b_deg << endl;
+	//for (size_t i = 8; i <= 30; i++){
+	//    Bfunc x(i, RAND);
+	//    Bfunc y = x.mobius();
+	//	Bfunc z = y.mobius();
+	//	bool ans = (x == z);
+	//    cout << "Количество аргументов = " << i << "\tПреобразование Мёбиуса " << (ans ? "верно!" : "не верно!")<< endl;
+	//}
+	//Bfunc x(31, RAND);
+	//Bfunc y(0), z(0);
+	//auto begin = chrono::steady_clock::now();
+	//y = x.mobius();
+	//auto end = chrono::steady_clock::now();
+	//auto t_mobius = chrono::duration_cast<chrono::milliseconds>(end - begin);	
+	//z = y.mobius();
+	//cout << "Количество аргументов = " << 31 << "\tПреобразование Мёбиуса " << ((x == z) ? "верно!" : "не верно!") << "\tВремя = " << t_mobius.count() << " мс" << endl;
 
 	//3 lab
 	//for (size_t i = 3; i <= 9; i += 3) {
@@ -457,6 +562,26 @@ int main() {
 	//	i++;
 	//}
 
+	//lab 4
+	//Bfunc one(16, ONE);
+	//cout << "cor(f(x1..x16) == 1) = " << one.cor() << "\n";
+	//Bfunc x("01101001");
+	//cout << "f = " << x << " cor = " << x.cor() << "\n";
+	//int i = 2;
+	//while (true) {
+	//	Bfunc x(i, ZERO);
+	//	base cor = 0;
+	//	auto begin = chrono::steady_clock::now();
+	//	cor = x.cor();
+	//	auto end = chrono::steady_clock::now();
+	//	auto ttime = chrono::duration_cast<chrono::milliseconds>(end - begin);
+	//	if (ttime.count() > 60000) {
+	//		cout << "Количество аргументов = " << i << "\tВремя  =" << ttime.count() << " мс\n";
+	//		cout << endl;
+	//		break;
+	//	}
+	//	i++;
+	//}
 
 	return 0;
 }
