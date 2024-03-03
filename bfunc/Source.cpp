@@ -341,15 +341,22 @@ public:
 		return walsh_hadamard;
 	}
 
-	base cor(){
-		vector<int>wal = this->walsh_hadamard();
+	//1 - Cor
+	//0 - Propagation criterion
+	base cor_or_propagation_criterion(bool flag = true){
+		vector<int> wal;
+		if (flag){
+			wal = this->walsh_hadamard();
+		}
+		else{
+			wal = this->autocor();
+		}
 		base n = log2(sizet);
 		base a = 0, b = 0, c = 0;
 		base result = 0;
 		for (size_t k = 1; k <= n; k++){
 			a = ((1 << k) - 1) << (n - k);
 			base tmp_a = a;
-			// a = a; tmp_a = i
 			while (a <= tmp_a){
 				tmp_a = a;
 				if (wal[a] != 0) {
@@ -376,7 +383,7 @@ public:
 		base n = log2(sizet);
 		int max_arg = 0;
 		for (int i = 0; i < wal.size(); i++) {
-			if (abs(wal[i]) > abs(wal[max_arg])) {
+			if (abs(wal[i]) >= abs(wal[max_arg])) {
 				max_arg = i;
 			}
 		}
@@ -393,7 +400,7 @@ public:
 				if (!res.empty()){
 					res += " + ";
 				}
-				res += "X";
+				res += "x";
 				res += std::to_string((j + 1));
 			}
 		}	
@@ -441,32 +448,33 @@ int main() {
 	setlocale(LC_ALL, "Russian");
 	system("chcp 1251");
 	
-	//string str = "0001000100011110000100010001111000010001000111101110111011100001";
-	//Bfunc a(str);
+	string str = "0001011101111110";
+	Bfunc a(str);
 	//Bfunc a(6, RAND);
-	//Bfunc b = a.mobius();
-	//cout << "f: " << a << "\n";
-	//cout << "Mobius: " << b << "\n";
-	//cout << "ANF: " << b.anf() << "\n";
-	//cout << "Deg(f): " << b.anf(false) << "\n";
-	//cout << "cor(f): " << a.cor() << "\n";
-	//cout << "Walsh-Hadamard: ";
-	//vector<int> wal;
-	//wal = a.walsh_hadamard();
-	//for (auto j : wal) {
-	//	cout << j << " ";
-	//}
-	//cout << endl;
-	//cout << "Nf: " << a.nonlinearity() << "\n";
-	//cout << "NAP: " << a.best_affine_approximation() << "\n";
-	//vector<int32_t> autocor;
-	//cout << "Autocorrelation: ";
-	//autocor = a.autocor();
-	//for (auto j : autocor) {
-	//	cout << j << " ";
-	//}
-	//cout << endl;
-	//cout << "CNf: " << a.ñomplete_nonlinear() << "\n";
+	Bfunc b = a.mobius();
+	cout << "f: " << a << "\n";
+	cout << "Mobius: " << b << "\n";
+	cout << "ANF: " << b.anf() << "\n";
+	cout << "Deg(f): " << b.anf(false) << "\n";
+	cout << "cor(f): " << a.cor_or_propagation_criterion() << "\n";
+	cout << "Walsh-Hadamard: ";
+	vector<int> wal;
+	wal = a.walsh_hadamard();
+	for (auto j : wal) {
+		cout << j << " ";
+	}
+	cout << endl;
+	cout << "Nf: " << a.nonlinearity() << "\n";
+	cout << "NAP: " << a.best_affine_approximation() << "\n";
+	vector<int32_t> autocor;
+	cout << "Autocorrelation: ";
+	autocor = a.autocor();
+	for (auto j : autocor) {
+		cout << j << " ";
+	}
+	cout << endl;
+	cout << "CNf: " << a.ñomplete_nonlinear() << "\n";
+	cout << "PCk: " << a.cor_or_propagation_criterion(false) << "\n";
 
 
 	//Bfunc bf1("0111101001111010011110100111101001111010011110100111101001111010");
