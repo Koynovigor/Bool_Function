@@ -92,8 +92,7 @@ public:
 			random_device rd;
 			mt19937 gen(rd());
 			if (sizet <= sizeof_base){
-				coef[0] = 0;
-				coef[0] |= gen() >> (sizeof_base - sizet);
+				coef[0] = gen() >> (sizeof_base - sizet);
 			}
 			else{
 				for (size_t i = 0; i < size; i++){
@@ -285,16 +284,17 @@ public:
 		string formula;
 		base deg = 0;
 		base deg_max = 0;
-		for (base j = 0; j < size; j++){
+		for (int j = size - 1; j >= 0; j--){
 			for (int i = 0; i < sizeof_base; i++) {
 				if (((coef[j] >> (sizeof_base - 1 - i)) & 1) == 1) {
 					if (!formula.empty()) {
 						formula += " + ";
 					}
 					for (int k = 0; k < n; k++) {
-						if (((i >> (n - k - 1)) & 1) == 1) {
+						if ((((i + sizeof_base * (size - j - 1)) >> (n - k - 1)) & 1) == 1) {
 							deg++;
 							formula += "x" + to_string(k + 1);
+							//cout << "i = " << (i + sizeof_base*(size - j - 1)) << "\n";
 						}
 					}
 					if (formula.empty()) {
@@ -411,11 +411,12 @@ public:
 	}
 
 	vector<int> autocor(){
+		int ver = log2(sizet);
 		vector<int> autocor_vec = walsh_hadamard();
 		for (int i = 0; i < autocor_vec.size(); i++){
 			autocor_vec[i] *= autocor_vec[i];
 		}
-		for (int i = 0; i < log2(sizet); i++){
+		for (int i = 0; i < ver; i++){
 			size_t cs = 1 << i;
 			for (int j = 0; j < (autocor_vec.size() / cs); j++){
 				if ((j & 1) == 0) {
@@ -431,7 +432,7 @@ public:
 			}
 		}
 		for (int i = 0; i < autocor_vec.size(); i++) {
-			autocor_vec[i] >>= log2(sizet);
+			autocor_vec[i] >>= ver;
 		}
 		return autocor_vec;
 	}
@@ -448,9 +449,9 @@ int main() {
 	setlocale(LC_ALL, "Russian");
 	system("chcp 1251");
 	
-	string str = "0001011101111110";
+	string str = "11111111";
 	Bfunc a(str);
-	//Bfunc a(6, RAND);
+	//Bfunc a(6, ONE);
 	Bfunc b = a.mobius();
 	cout << "f: " << a << "\n";
 	cout << "Mobius: " << b << "\n";
